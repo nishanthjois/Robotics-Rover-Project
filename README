@@ -1,1 +1,78 @@
-README
+
+## Project is to autonomously map a simulated environment and search for samples of interest. 
+
+## Simulator settings:
+Screen resoultion: 1024x768
+Graphics Quality: Good
+
+# Key steps for the project:
+1. Perspective Transform: cv2.getPerspectiveTransform() and cv2.warpPerspective()
+2. Warp, Threshold and Map
+To make a map of the environment, you're going to first apply a perspective transform and then apply a color threshold. This color thresholded image is now a map of the navigable terrain in front of the rover.
+3. Map to world corodinates by rotation followed by a translation. 
+4. Convert to polar coordinates
+5. Navigate
+
+# Following code was updated in perception.py:
+# 1) Perpective transform
+    # Destination image size is converted to 10x10 pixel which represent 1 meter square.
+    dst_size = 5
+    # Set a bottom offset to account for the fact that the bottom of the image
+    # is not the position of the rover but a bit in front of it
+    bottom_offset = 6
+    image = Rover.img
+    
+    source = np.float32([[14, 140], [301 ,140],[200, 96], [118, 96]])
+
+    destination = np.float32([[image.shape[1]/2 - dst_size, image.shape[0] - bottom_offset],
+                  [image.shape[1]/2 + dst_size, image.shape[0] - bottom_offset],
+                  [image.shape[1]/2 + dst_size, image.shape[0] - 2*dst_size - bottom_offset],
+                  [image.shape[1]/2 - dst_size, image.shape[0] - 2*dst_size - bottom_offset],
+                  ])
+    # 2) Apply perspective transform
+    warped, mask = perspect_transform(Rover.img, source, destination)
+
+    # 3) Apply color threshold to identify navigable terrain/obstacles/rock samples
+    threshed = color_thresh(warped)
+    obs_map = np.absolute(np.float32(threshed) - 1) * mask
+
+    # 4) Update Rover.vision_image (this will be displayed on left side of screen)
+    # Update Rover vision image with the threshed map * Blue channel
+    Rover.vision_image[:,:,2] = threshed * 255
+    # Update Rover vision image with the obs_map * Red channel
+    Rover.vision_image[:,:,0] = obs_map * 255
+
+    # 5) Convert map image pixel values to rover-centric coords
+    xpix, ypix = rover_coords(threshed)
+
+    # 6) Convert rover-centric pixel values to world coordinates
+    world_size = Rover.worldmap.shape[0]
+    scale = 2 * dst_size
+    x_world, y_world = pix_to_world(xpix, ypix, Rover.pos[0], Rover.pos[1],
+                                    Rover.yaw, world_size, scale)
+
+    # Convert obstable map to obstable world map
+    obsxpix, obsypix = rover_coords(obs_map)
+    obs_x_world, obs_y_world = pix_to_world(obsxpix, obsypix, Rover.pos[0], Rover.pos[1],
+                                            Rover.yaw, world_size, scale)
+
+    # 7) Update Rover worldmap (to be displayed on right side of screen)
+    # For Blue channel
+    Rover.worldmap[y_world, x_world, 2] += 10 
+    # For Red channel
+    Rover.worldmap[obs_y_world, obs_x_world, 0] += 1 
+    nav_pix = Rover.worldmap[:,:,2] > 0
+
+    # 8) Convert rover-centric pixel positions to polar coordinates
+    dist, angle = to_polar_coords(xpix, ypix)
+    # Update Rover pixel distances and angles
+    Rover.nav_angles = angle
+
+- No changes were made in decision.py and drive.py
+- By running drive_rover.py and launching the simulator in autonomous mode, rover does a reasonably good job at mapping the environment.
+- Command to test: python drive_rover.py 
+
+Output file and figures are in notebook are in the repo.
+
+TODO: Pick up rocks.
+
