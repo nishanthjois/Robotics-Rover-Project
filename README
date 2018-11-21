@@ -1,11 +1,10 @@
+** Project is to autonomously map a simulated environment and search for samples of interest. **
 
-## Project is to autonomously map a simulated environment and search for samples of interest. 
-
-## Simulator settings:
+** Simulator settings:**
 Screen resoultion: 1024x768
 Graphics Quality: Good
 
-# Key steps for the project:
+** Key steps for the project: **
 1. Perspective Transform: cv2.getPerspectiveTransform() and cv2.warpPerspective()
 2. Warp, Threshold and Map
 To make a map of the environment, you're going to first apply a perspective transform and then apply a color threshold. This color thresholded image is now a map of the navigable terrain in front of the rover.
